@@ -1,0 +1,16 @@
+name: Create compiled format for Windows
+on: [workflow_dispatch]
+jobs:
+  build:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v2
+      - uses: actions/setup-python@v2
+      - run: pip install pyinstaller
+      - run: pip install requests
+      - run: pyinstaller --distpath . --windowed --onefile system-hijack-removal-tool.py
+      - run: dir
+      - name: Create Pull Request
+        uses: peter-evans/create-pull-request@v3
+        with:
+          author: Bot <bot@iam-py-test.github.io>
