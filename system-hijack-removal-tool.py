@@ -65,12 +65,22 @@ def isUACdisabled():
 		messagebox.showerror(message=err)
 		# if something goes wrong, we want to return false
 		return False
+def isExeAssoc():
+	key = "SOFTWARE\Classes\.exe" 
+	try:
+		import winreg
+		k = winreg.OpenKey(winreg.HKEY_LOCAL_MACHINE,key,0,winreg.KEY_ALL_ACCESS)
+		key_name, key_value, key_type = winreg.EnumValue(k,0)
+		winreg.CloseKey(k)
+		return key_value != "exefile"
+	except Exception as err:
+		return False
 
 class scanner():
 	def __init__(self):
 		self.g = {}
 		self.anyd = False
-		self.res_names = {"HOSTs":"Modified hosts file","UAC":"Disabled UAC"}
+		self.res_names = {"HOSTs":"Modified hosts file","UAC":"Disabled UAC","EXE":"Broken exe association"}
 		self.show_options()
 	def scan(self):
 		self.results = {}
@@ -86,7 +96,10 @@ class scanner():
 			self.results["UAC"] = isUACdisabled()
 			if self.results["UAC"] == True:
 				self.anyd = True
-		#print(self.results)	
+		if self.g["Scan for broken exe association"].get() == "1":
+			self.results["EXE"] = isExeAssoc()
+			if self.results["EXE"] == True:
+				self.anyd = True
 		self.show_results()
 	def show_options(self):
 		self.anyd = False
@@ -121,15 +134,15 @@ class scanner():
 	def fix(self):
 		self.root.destroy()
 		#print(self.threats)
+		reboot_required = False
 		try:
 			try:
 				if self.threats["UAC"].get() == "1":
 					# there's got to be a better way
 					import subprocess
 					subprocess.run("C:\\Windows\\System32\\reg.exe ADD HKLM\SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\System /v EnableLUA /t REG_DWORD /d 1 /f",shell=True)
-					if messagebox.askokcancel(message="Reboot to enable UAC? ") == True:
-						subprocess.run("shutdown /r /c \"The System Hijack removal tool needs to reboot your computer\"",shell=True)
-						sys.exit()
+					reboot_required = True
+					
 			except:
 				pass
 			try:
@@ -150,8 +163,25 @@ class scanner():
 					end.close()
 			except:
 				pass
+			try:
+				if self.threats["EXE"].get() == "1":
+					import winreg
+					try:
+						import subprocess
+						devnull = open(os.devnull, 'wb')
+						subprocess.Popen("assoc .exe=exefile",stdout=devnull, stderr=devnull,shell=True)
+					except Exception as err:
+						messagebox.showerror(message=err)
+			except:
+				pass
+			
+			if reboot_required:
+				if messagebox.askokcancel(message="Reboot to fix all issues? ") == True:
+					subprocess.run("shutdown /r /c \"The System Hijack removal tool needs to reboot your computer\"",shell=True)
+					sys.exit()
+			messagebox.showinfo(message="All modifications have been removed")
 		except Exception as err:
-			messagebox.showerror(err)
+			messagebox.showerror(message=err)
 		self.show_options()
 
 main = scanner()
